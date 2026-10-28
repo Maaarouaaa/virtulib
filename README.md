@@ -38,7 +38,7 @@ The importer:
 ## What’s on the page
 
 - Personal 3D shelf of imported Goodreads books
-- Spine lettering uses a shortened title only; thin spines (under 22px) stay color-only
+- Spine lettering uses the main title only, fitted to the spine and set in a small trio of type styles; thin spines stay text-free with light decoration
 - Multi-select genre filters (OR) combined with a reading-status filter (AND)
 - Catalogue search results in a separate Open Library list (does not add to your shelf)
 - “In my library” when ISBN or work key matches

@@ -2,14 +2,24 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { COVER_W, faceFont } from "@/components/bookFaces";
+import { COVER_W } from "@/components/bookFaces";
 import type { Book } from "@/data/books";
 import {
-  displayTitle,
+  faceClass,
+  faceTracking,
+  letteredBand,
+  letteredRules,
+  letterShadow,
+  spineFace,
+  spineMaterial,
+  spinePlace,
+  thinDecoration,
+  type ThinMark,
+} from "@/lib/spineStyle";
+import {
+  fitSpineTitle,
   isThinSpine,
   seriesFromTitle,
-  spineLetterSize,
-  spineTitleLimit,
 } from "@/lib/spineTitle";
 import { cn } from "@/lib/utils";
 
@@ -20,22 +30,112 @@ type BookSpineProps = {
   suppressHover?: boolean;
 };
 
-const finishSheen: Record<Book["finish"], string> = {
-  cloth:
-    "linear-gradient(90deg, transparent 0%, rgb(255 255 255 / 0.08) 18%, rgb(255 255 255 / 0.02) 42%, rgb(0 0 0 / 0.16) 78%, rgb(0 0 0 / 0.08) 100%)",
-  gloss:
-    "linear-gradient(90deg, rgb(255 255 255 / 0.22) 0%, transparent 28%, rgb(255 255 255 / 0.34) 48%, transparent 62%, rgb(0 0 0 / 0.22) 100%)",
-  matte:
-    "linear-gradient(90deg, rgb(255 255 255 / 0.06) 0%, transparent 40%, rgb(0 0 0 / 0.12) 100%)",
-};
+function finishTexture(
+  finish: Book["finish"],
+  grainX: number,
+  grainY: number,
+  scale: number
+): CSSProperties {
+  if (finish === "cloth") {
+    return {
+      backgroundImage: [
+        `repeating-linear-gradient(90deg, rgb(255 255 255 / 0.045) 0 1px, transparent 1px ${2 + scale}px)`,
+        `repeating-linear-gradient(0deg, rgb(0 0 0 / 0.04) 0 1px, transparent 1px ${3.5 + scale}px)`,
+        `repeating-linear-gradient(180deg, rgb(70 46 20 / 0.03) 0 2px, transparent 2px ${6 + scale}px)`,
+      ].join(", "),
+      backgroundPosition: `${grainX}px ${grainY}px`,
+    };
+  }
+  if (finish === "gloss") {
+    return {
+      backgroundImage:
+        "linear-gradient(180deg, rgb(255 255 255 / 0.06), transparent 38%)",
+    };
+  }
+  return {
+    backgroundImage: [
+      `repeating-linear-gradient(180deg, rgb(40 28 16 / 0.03) 0 1px, transparent 1px ${2.4 + scale * 0.4}px)`,
+      "radial-gradient(rgb(40 24 8 / 0.035) 0.55px, transparent 0.7px)",
+    ].join(", "),
+    backgroundSize: `auto, ${3.2 + scale}px ${3.2 + scale}px`,
+    backgroundPosition: `0 0, ${grainX}px ${grainY}px`,
+  };
+}
 
-const finishTexture: Record<Book["finish"], string> = {
-  cloth:
-    "repeating-linear-gradient(90deg, rgb(255 255 255 / 0.04) 0 1px, transparent 1px 3px), repeating-linear-gradient(0deg, rgb(0 0 0 / 0.05) 0 1px, transparent 1px 4px)",
-  gloss: "linear-gradient(180deg, rgb(255 255 255 / 0.08), transparent 40%)",
-  matte:
-    "repeating-linear-gradient(180deg, rgb(0 0 0 / 0.03) 0 1px, transparent 1px 3px)",
-};
+function finishSheen(finish: Book["finish"], sheen: number): string {
+  if (finish === "cloth") {
+    return `linear-gradient(90deg, rgb(255 255 255 / ${0.05 * sheen}) 0%, transparent 22%, rgb(255 255 255 / ${0.03 * sheen}) 48%, rgb(0 0 0 / ${0.1 * sheen}) 100%)`;
+  }
+  if (finish === "gloss") {
+    return `linear-gradient(90deg, rgb(255 255 255 / ${0.1 * sheen}) 0%, transparent 32%, rgb(255 255 255 / ${0.08 * sheen}) 52%, transparent 68%, rgb(0 0 0 / ${0.1 * sheen}) 100%)`;
+  }
+  return `linear-gradient(90deg, rgb(255 255 255 / ${0.04 * sheen}) 0%, transparent 40%, rgb(0 0 0 / ${0.08 * sheen}) 100%)`;
+}
+
+function SpineMark({
+  mark,
+  color,
+  embossed,
+}: {
+  mark: ThinMark;
+  color: string;
+  embossed: boolean;
+}) {
+  if (mark === "none") return null;
+  const relief = embossed
+    ? "inset 0.5px 0.5px 0 rgb(255 255 255 / 0.2), 0.5px 0.5px 0 rgb(0 0 0 / 0.22)"
+    : "0 0.5px 0 rgb(0 0 0 / 0.18)";
+
+  if (mark === "plus") {
+    return (
+      <span aria-hidden className="absolute inset-0 flex items-center justify-center">
+        <span
+          className="absolute h-[11px] w-px"
+          style={{ background: color, boxShadow: relief, opacity: 0.7 }}
+        />
+        <span
+          className="absolute h-px w-[11px]"
+          style={{ background: color, boxShadow: relief, opacity: 0.7 }}
+        />
+      </span>
+    );
+  }
+  if (mark === "bar") {
+    return (
+      <span
+        aria-hidden
+        className="absolute left-1/2 top-1/2 h-[13px] w-px -translate-x-1/2 -translate-y-1/2"
+        style={{ background: color, boxShadow: relief, opacity: 0.7 }}
+      />
+    );
+  }
+  if (mark === "lozenge") {
+    return (
+      <span
+        aria-hidden
+        className="absolute left-1/2 top-1/2 h-[9px] w-[5px] -translate-x-1/2 -translate-y-1/2"
+        style={{
+          border: `1px solid ${color}`,
+          borderRadius: "40%",
+          boxShadow: relief,
+          opacity: 0.62,
+        }}
+      />
+    );
+  }
+  return (
+    <span
+      aria-hidden
+      className="absolute left-1/2 top-[46%] h-[5px] w-[5px]"
+      style={{
+        border: `1px solid ${color}`,
+        transform: "translateX(-50%) rotate(45deg)",
+        boxShadow: relief,
+        opacity: 0.62,
+      }}
+    />
+  );
+}
 
 export function BookSpine({
   book,
@@ -49,7 +149,6 @@ export function BookSpine({
     null
   );
   const leaveTimer = useRef<number | null>(null);
-  const titleFont = faceFont[book.face];
 
   const pull = hovered && !suppressHover ? 96 : 0;
   const lift = hovered && !suppressHover ? -26 : 0;
@@ -97,11 +196,19 @@ export function BookSpine({
   }, [hovered]);
 
   const thin = isThinSpine(book.width);
-  const fontSize = spineLetterSize(book.width);
-  const letteredTitle = displayTitle(
+  const fit = fitSpineTitle(
     book.title,
-    spineTitleLimit(book.height, fontSize, Boolean(book.caps))
+    book.width,
+    book.height,
+    spineFace(book.id)
   );
+  const face = fit.face;
+  const place = spinePlace(book.id);
+  const material = spineMaterial(book.id, book.finish, book.wear);
+  const decor = thin ? thinDecoration(book.id) : null;
+  const showRules = thin ? Boolean(decor?.rules) : letteredRules(book.id);
+  const showBand = thin ? Boolean(decor?.band) : letteredBand(book.id) && Boolean(book.band);
+  const embossed = book.finish === "cloth" || book.binding === "hardcover";
   const series = seriesFromTitle(book.title);
   const author = book.author.trim() || undefined;
   const publisher = book.publisher.trim() || undefined;
@@ -116,6 +223,8 @@ export function BookSpine({
         ? book.status.replace("-", " ")
         : null,
   ].filter((part): part is string => Boolean(part));
+  const ruleColor = book.band || book.ink;
+  const letterKind = embossed ? "emboss" : "print";
 
   return (
     <>
@@ -157,84 +266,93 @@ export function BookSpine({
             style={{
               background: book.spine,
               boxShadow:
-                "inset 1px 0 0 rgb(255 255 255 / 0.14), inset -1px 0 0 rgb(0 0 0 / 0.28), 2px 8px 16px rgb(40 28 16 / 0.18)",
+                "inset 1px 0 0 rgb(255 255 255 / 0.12), inset -1px 0 0 rgb(0 0 0 / 0.24), 2px 8px 16px rgb(40 28 16 / 0.16)",
             }}
           >
-            {!thin && book.cover ? (
-              <span
-                aria-hidden
-                className="absolute inset-y-0 left-0 w-[42%] opacity-55"
-                style={{
-                  backgroundImage: `url(${book.cover})`,
-                  backgroundSize: `${COVER_W}px 100%`,
-                  backgroundPosition: "left center",
-                  backgroundRepeat: "no-repeat",
-                  mixBlendMode: "multiply",
-                }}
-              />
-            ) : null}
             <span
               aria-hidden
               className="absolute inset-0"
               style={{
-                background: `linear-gradient(90deg, rgb(0 0 0 / 0.18), transparent 28%, ${book.spine} 72%)`,
+                background: `linear-gradient(90deg, rgb(0 0 0 / ${0.09 * material.curve}), rgb(255 255 255 / ${0.05 * material.curve}) 20%, transparent 46%, rgb(0 0 0 / ${0.07 * material.curve}) 78%, rgb(0 0 0 / ${0.14 * material.curve}) 100%)`,
               }}
             />
-            {book.band ? (
+            {showRules ? (
               <>
                 <span
                   aria-hidden
-                  className="absolute inset-x-0 top-0 h-[3px]"
-                  style={{ background: book.band }}
+                  className="absolute inset-x-[18%] top-[7%] h-px"
+                  style={{ background: ruleColor, opacity: 0.42 }}
                 />
                 <span
                   aria-hidden
-                  className="absolute inset-x-0 bottom-0 h-[3px]"
-                  style={{ background: book.band }}
+                  className="absolute inset-x-[18%] bottom-[8%] h-px"
+                  style={{ background: ruleColor, opacity: 0.38 }}
                 />
               </>
+            ) : null}
+            {showBand ? (
+              <span
+                aria-hidden
+                className="absolute inset-x-0 top-[16%] h-[5px]"
+                style={{
+                  background: book.band ?? ruleColor,
+                  opacity: 0.55,
+                  boxShadow: "inset 0 1px 0 rgb(255 255 255 / 0.12), inset 0 -1px 0 rgb(0 0 0 / 0.12)",
+                }}
+              />
+            ) : null}
+            {thin && decor ? (
+              <SpineMark mark={decor.mark} color={book.ink} embossed={embossed} />
             ) : null}
             {!thin ? (
               <span
                 aria-hidden
                 className={cn(
-                  "absolute inset-x-0 top-[14%] bottom-[18%] flex items-center justify-center overflow-hidden px-[2px]",
-                  titleFont,
-                  book.caps && "uppercase"
+                  "absolute inset-x-0 flex justify-center overflow-hidden px-[2px]",
+                  faceClass(face),
+                  face === "caps" && "uppercase",
+                  place === "high" ? "top-[8%] bottom-[22%]" : "top-[13%] bottom-[15%]",
+                  "items-center"
                 )}
                 style={{
                   color: book.ink,
                   writingMode: "vertical-rl",
                   textOrientation: "mixed",
                   transform: "rotate(180deg)",
-                  fontSize,
-                  letterSpacing: book.caps ? "0.08em" : "0.03em",
-                  lineHeight: 1,
-                  whiteSpace: "nowrap",
-                  textShadow: "0 1px 0 rgb(0 0 0 / 0.18)",
-                  opacity: 0.92 - book.wear * 0.25,
+                  fontSize: fit.fontSize,
+                  fontWeight: face === "sans" ? 400 : 500,
+                  letterSpacing: faceTracking(face),
+                  lineHeight: fit.lines === 2 ? 1.05 : 1,
+                  whiteSpace: fit.lines === 2 ? "pre-line" : "nowrap",
+                  textShadow: letterShadow(book.ink, letterKind),
+                  opacity: material.inkFade,
                 }}
               >
-                {letteredTitle}
+                {fit.text}
               </span>
             ) : null}
             <span
               aria-hidden
               className="pointer-events-none absolute inset-0 mix-blend-overlay"
-              style={{ backgroundImage: finishTexture[book.finish] }}
+              style={finishTexture(
+                book.finish,
+                material.grainX,
+                material.grainY,
+                material.grainScale
+              )}
             />
             <span
               aria-hidden
               className="pointer-events-none absolute inset-0 mix-blend-soft-light"
-              style={{ backgroundImage: finishSheen[book.finish] }}
+              style={{ backgroundImage: finishSheen(book.finish, material.sheen) }}
             />
             <span
               aria-hidden
               className="pointer-events-none absolute inset-0"
               style={{
-                opacity: book.wear,
+                opacity: book.wear * 0.55,
                 background:
-                  "linear-gradient(180deg, rgb(255 236 190 / 0.28), transparent 18%, transparent 78%, rgb(40 24 8 / 0.35))",
+                  "linear-gradient(180deg, rgb(255 236 190 / 0.16), transparent 16%, transparent 80%, rgb(40 24 8 / 0.22))",
               }}
             />
             <span
@@ -242,7 +360,7 @@ export function BookSpine({
               className="pointer-events-none absolute inset-0"
               style={{
                 boxShadow:
-                  "inset 0 1px 0 rgb(255 255 255 / 0.22), inset 0 -2px 3px rgb(0 0 0 / 0.18)",
+                  "inset 0 1px 0 rgb(255 255 255 / 0.18), inset 0 -2px 3px rgb(0 0 0 / 0.14)",
               }}
             />
           </span>
