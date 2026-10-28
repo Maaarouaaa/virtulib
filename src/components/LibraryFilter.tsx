@@ -9,8 +9,8 @@ type LibraryFilterProps = {
   books: Book[];
   query: string;
   onQueryChange: (query: string) => void;
-  genre: string | null;
-  onGenreChange: (genre: string | null) => void;
+  selectedGenres: string[];
+  onSelectedGenresChange: (genres: string[]) => void;
   status: string | null;
   onStatusChange: (status: string | null) => void;
   searching: boolean;
@@ -27,8 +27,8 @@ export function LibraryFilter({
   books,
   query,
   onQueryChange,
-  genre,
-  onGenreChange,
+  selectedGenres,
+  onSelectedGenresChange,
   status,
   onStatusChange,
   searching,
@@ -94,13 +94,29 @@ export function LibraryFilter({
           ) : null}
           {genres.length > 0 ? (
             <div className="no-scrollbar flex gap-2 overflow-x-auto whitespace-nowrap">
+              {selectedGenres.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => onSelectedGenresChange([])}
+                  className="rounded-full border border-foreground/18 bg-transparent px-3 py-1 font-mono text-[11px] uppercase tracking-[0.16em] text-foreground transition-colors duration-500 hover:border-foreground/35"
+                >
+                  Clear genres
+                </button>
+              ) : null}
               {genres.map((name) => {
-                const active = genre === name;
+                const active = selectedGenres.includes(name);
                 return (
                   <button
                     key={name}
                     type="button"
-                    onClick={() => onGenreChange(active ? null : name)}
+                    aria-pressed={active}
+                    onClick={() =>
+                      onSelectedGenresChange(
+                        active
+                          ? selectedGenres.filter((genre) => genre !== name)
+                          : [...selectedGenres, name]
+                      )
+                    }
                     className={cn(
                       "rounded-full border px-3 py-1 font-mono text-[11px] uppercase tracking-[0.16em] transition-colors duration-500",
                       active

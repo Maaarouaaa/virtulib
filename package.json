@@ -6,7 +6,8 @@
     "dev": "next dev --port 4521 --hostname 127.0.0.1",
     "build": "next build",
     "start": "next start --port 4521",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --experimental-strip-types --test src/lib/spineTitle.test.ts src/lib/shelfFilters.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

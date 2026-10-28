@@ -14,6 +14,7 @@ import { useRecommendations } from "@/hooks/useRecommendations";
 import type { Book } from "@/data/books";
 import { libraryIndex, isInLibrary } from "@/lib/bookMatch";
 import { catalogueToBook, type CatalogueResult } from "@/lib/catalogue";
+import { matchesShelfFilters } from "@/lib/shelfFilters";
 
 type OpenBook = {
   book: Book;
@@ -23,7 +24,7 @@ type OpenBook = {
 
 export function Library() {
   const [query, setQuery] = useState("");
-  const [genre, setGenre] = useState<string | null>(null);
+  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [shelfStatus, setShelfStatus] = useState<string | null>(null);
   const [open, setOpen] = useState<OpenBook | null>(null);
   const [recommendOpen, setRecommendOpen] = useState(false);
@@ -42,12 +43,10 @@ export function Library() {
   }, [catalogue.results, index]);
 
   const visible = useMemo(() => {
-    return books.filter((book) => {
-      if (genre && !book.genres?.includes(genre)) return false;
-      if (shelfStatus && book.status !== shelfStatus) return false;
-      return true;
-    });
-  }, [genre, shelfStatus]);
+    return books.filter((book) =>
+      matchesShelfFilters(book, selectedGenres, shelfStatus)
+    );
+  }, [selectedGenres, shelfStatus]);
 
   const emptyLibrary = books.length === 0;
   const noMatch = !emptyLibrary && visible.length === 0;
@@ -109,8 +108,8 @@ export function Library() {
           books={books}
           query={query}
           onQueryChange={setQuery}
-          genre={genre}
-          onGenreChange={setGenre}
+          selectedGenres={selectedGenres}
+          onSelectedGenresChange={setSelectedGenres}
           status={shelfStatus}
           onStatusChange={setShelfStatus}
           searching={searching}
@@ -144,7 +143,11 @@ export function Library() {
           <div className="mx-auto max-w-xl px-6 py-24 text-center">
             <p className="font-display text-3xl italic">No books match.</p>
             <p className="mt-3 text-muted-foreground">
-              Try a looser shelf or genre filter.
+              {selectedGenres.length > 0 && shelfStatus
+                ? "Nothing on this shelf is tagged with the selected genres. Clear genres or switch reading status."
+                : selectedGenres.length > 0
+                  ? "Nothing on the shelf is tagged with the selected genres. Clear genres to see the rest of your library."
+                  : "Try a different reading status."}
             </p>
           </div>
         ) : (

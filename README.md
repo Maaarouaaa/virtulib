@@ -38,6 +38,8 @@ The importer:
 ## What’s on the page
 
 - Personal 3D shelf of imported Goodreads books
+- Spine lettering uses a shortened title only; thin spines (under 22px) stay color-only
+- Multi-select genre filters (OR) combined with a reading-status filter (AND)
 - Catalogue search results in a separate Open Library list (does not add to your shelf)
 - “In my library” when ISBN or work key matches
 - Your rating shown as **Not rated** when empty; Open Library averages are labeled separately

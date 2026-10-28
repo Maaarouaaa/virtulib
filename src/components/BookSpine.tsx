@@ -4,6 +4,13 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { COVER_W, faceFont } from "@/components/bookFaces";
 import type { Book } from "@/data/books";
+import {
+  displayTitle,
+  isThinSpine,
+  seriesFromTitle,
+  spineLetterSize,
+  spineTitleLimit,
+} from "@/lib/spineTitle";
 import { cn } from "@/lib/utils";
 
 type BookSpineProps = {
@@ -89,15 +96,33 @@ export function BookSpine({
     };
   }, [hovered]);
 
-  const shortTitle =
-    book.title.length > 42 ? `${book.title.slice(0, 40).trim()}…` : book.title;
+  const thin = isThinSpine(book.width);
+  const fontSize = spineLetterSize(book.width);
+  const letteredTitle = displayTitle(
+    book.title,
+    spineTitleLimit(book.height, fontSize, Boolean(book.caps))
+  );
+  const series = seriesFromTitle(book.title);
+  const author = book.author.trim() || undefined;
+  const publisher = book.publisher.trim() || undefined;
+  const facts = [
+    book.year ? String(book.year) : null,
+    book.binding,
+    book.goodreadsId
+      ? book.rating > 0
+        ? `${book.rating.toFixed(1)}★`
+        : "Not rated"
+      : book.status
+        ? book.status.replace("-", " ")
+        : null,
+  ].filter((part): part is string => Boolean(part));
 
   return (
     <>
       <button
         ref={buttonRef}
         type="button"
-        aria-label={`${book.title} by ${book.author}`}
+        aria-label={author ? `${book.title} by ${author}` : book.title}
         onPointerEnter={onEnter}
         onPointerLeave={onLeave}
         onFocus={onEnter}
@@ -135,7 +160,7 @@ export function BookSpine({
                 "inset 1px 0 0 rgb(255 255 255 / 0.14), inset -1px 0 0 rgb(0 0 0 / 0.28), 2px 8px 16px rgb(40 28 16 / 0.18)",
             }}
           >
-            {book.cover ? (
+            {!thin && book.cover ? (
               <span
                 aria-hidden
                 className="absolute inset-y-0 left-0 w-[42%] opacity-55"
@@ -169,56 +194,28 @@ export function BookSpine({
                 />
               </>
             ) : null}
-            <span
-              className={cn(
-                "absolute inset-x-0 top-[14%] bottom-[18%] flex items-center justify-center px-[1px]",
-                titleFont,
-                book.caps && "uppercase"
-              )}
-              style={{
-                color: book.ink,
-                writingMode: "vertical-rl",
-                textOrientation: "mixed",
-                transform: "rotate(180deg)",
-                fontSize: Math.max(9, Math.min(13, book.width * 0.46)),
-                letterSpacing: book.caps ? "0.12em" : "0.04em",
-                lineHeight: 1,
-                textShadow: "0 1px 0 rgb(0 0 0 / 0.18)",
-                opacity: 0.92 - book.wear * 0.25,
-              }}
-            >
-              {shortTitle}
-            </span>
-            {book.width >= 44 ? (
+            {!thin ? (
               <span
+                aria-hidden
                 className={cn(
-                  "absolute inset-x-0 top-[6%] h-[18%] overflow-hidden px-[1px] text-center",
-                  titleFont
+                  "absolute inset-x-0 top-[14%] bottom-[18%] flex items-center justify-center overflow-hidden px-[2px]",
+                  titleFont,
+                  book.caps && "uppercase"
                 )}
                 style={{
                   color: book.ink,
                   writingMode: "vertical-rl",
+                  textOrientation: "mixed",
                   transform: "rotate(180deg)",
-                  fontSize: Math.max(8, book.width * 0.28),
-                  letterSpacing: "0.16em",
-                  textTransform: "uppercase",
-                  opacity: 0.7,
+                  fontSize,
+                  letterSpacing: book.caps ? "0.08em" : "0.03em",
+                  lineHeight: 1,
+                  whiteSpace: "nowrap",
+                  textShadow: "0 1px 0 rgb(0 0 0 / 0.18)",
+                  opacity: 0.92 - book.wear * 0.25,
                 }}
               >
-                {book.author}
-              </span>
-            ) : null}
-            {book.width >= 30 && book.publisher ? (
-              <span
-                className="absolute inset-x-0 bottom-[7px] px-[1px] text-center font-mono uppercase"
-                style={{
-                  color: book.ink,
-                  fontSize: Math.max(6, Math.min(8, book.width * 0.28)),
-                  letterSpacing: "0.08em",
-                  opacity: 0.62,
-                }}
-              >
-                {book.publisher.slice(0, 10)}
+                {letteredTitle}
               </span>
             ) : null}
             <span
@@ -319,22 +316,35 @@ export function BookSpine({
               >
                 {book.title}
               </p>
-              <p className="mt-1 font-sans" style={{ fontSize: 15 }}>
-                {book.author}
-              </p>
-              <p
-                className="mt-2 font-mono uppercase tracking-[0.14em] text-muted-foreground"
-                style={{ fontSize: 14 }}
-              >
-                {book.year || "—"} · {book.binding}
-                {book.goodreadsId
-                  ? book.rating > 0
-                    ? ` · ${book.rating.toFixed(1)}★`
-                    : " · Not rated"
-                  : book.status
-                    ? ` · ${book.status.replace("-", " ")}`
-                    : ""}
-              </p>
+              {author ? (
+                <p className="mt-1 font-sans" style={{ fontSize: 15 }}>
+                  {author}
+                </p>
+              ) : null}
+              {series ? (
+                <p
+                  className="mt-1 font-sans text-muted-foreground"
+                  style={{ fontSize: 14 }}
+                >
+                  {series}
+                </p>
+              ) : null}
+              {publisher ? (
+                <p
+                  className="mt-1 font-mono uppercase tracking-[0.12em] text-muted-foreground"
+                  style={{ fontSize: 13 }}
+                >
+                  {publisher}
+                </p>
+              ) : null}
+              {facts.length ? (
+                <p
+                  className="mt-2 font-mono uppercase tracking-[0.14em] text-muted-foreground"
+                  style={{ fontSize: 14 }}
+                >
+                  {facts.join(" · ")}
+                </p>
+              ) : null}
               {book.genres?.length ? (
                 <p
                   className="mt-1 font-sans text-muted-foreground"
