@@ -134,12 +134,18 @@ export function RecommendBookDialog({
                     onClick={() => setPicked(result)}
                     className="flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-muted/70"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={result.cover}
-                      alt=""
-                      className="h-14 w-10 rounded-sm object-cover ring-1 ring-foreground/10"
-                    />
+                    {result.cover ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={result.cover}
+                        alt=""
+                        className="h-14 w-10 rounded-sm object-cover ring-1 ring-foreground/10"
+                      />
+                    ) : (
+                      <span className="flex h-14 w-10 items-center justify-center rounded-sm bg-muted px-1 text-center font-display text-[9px] leading-tight ring-1 ring-foreground/10">
+                        {result.title}
+                      </span>
+                    )}
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-display text-lg leading-tight">
                         {result.title}
@@ -160,12 +166,18 @@ export function RecommendBookDialog({
         ) : (
           <div className="space-y-4">
             <div className="flex gap-4">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={picked.cover}
-                alt=""
-                className="h-28 w-20 rounded-sm object-cover ring-1 ring-foreground/10"
-              />
+              {picked.cover ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={picked.cover}
+                  alt=""
+                  className="h-28 w-20 rounded-sm object-cover ring-1 ring-foreground/10"
+                />
+              ) : (
+                <span className="flex h-28 w-20 items-center justify-center rounded-sm bg-muted px-2 text-center font-display text-xs leading-tight ring-1 ring-foreground/10">
+                  {picked.title}
+                </span>
+              )}
               <div>
                 <p className="font-display text-xl leading-tight">{picked.title}</p>
                 <p className="mt-1 text-sm text-muted-foreground">

@@ -25,6 +25,8 @@
 *.pem
 /uploads
 /agent-tools
+goodreads_library_export.csv
+goodreads*.csv
 
 # debug
 npm-debug.log*

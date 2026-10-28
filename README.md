@@ -1,8 +1,8 @@
 # Virtual library
 
-A single-page personal bookshelf: real covers standing as 3D spines on a warm paper shelf. Hover a book to read its card, click to pull it out, and ask the stacks in plain English.
+A single-page personal bookshelf: your Goodreads volumes standing as 3D spines on a warm paper shelf. Hover a book to read its card, click to pull it out, and search the whole Open Library catalogue.
 
-The shelf reads from one file, `src/data/books.ts`. A starter catalogue of real Open Library editions is included so the rail is livable on first run. Replace it with your Goodreads export to make the room yours.
+The shelf reads from one file, `src/data/books.ts`. Do not commit the raw Goodreads CSV.
 
 ## Run locally
 
@@ -13,28 +13,40 @@ npm run dev
 
 Open [http://localhost:4521](http://localhost:4521).
 
-Optional natural-language search: copy `.env.example` to `.env.local` and set `OPENAI_API_KEY` (or `GEMINI_API_KEY`). Without a key, the same search bar matches title, author, genres, and blurb on the server.
+The main search bar queries Open Library (`/api/search`). No AI key is required.
 
-## Import your Goodreads library
+## Refresh your Goodreads library
 
 1. On Goodreads: **My Books → Import and export → Export Library**.
-2. Drop `goodreads_library_export.csv` in the project root.
-3. Ask the assistant (or run the import yourself) to regenerate `src/data/books.ts` from rows whose Exclusive Shelf is `read` or `currently-reading`.
+2. Keep the CSV off git (it is gitignored).
+3. Regenerate the shelf:
 
-Rules the importer follows:
+```bash
+node scripts/import-goodreads.mjs /path/to/goodreads_library_export.csv
+```
 
-- Cover art and blurbs from Open Library
-- Spine color sampled from the cover’s left edge
-- Binding, height, and width derived from page count
-- Genres only from: Fiction, Nonfiction, Sci-Fi, Mystery & Thriller, Fantasy, Romance
-- Newest finished date first
+The importer:
+
+- Parses quoted commas, multiline reviews, and Goodreads ISBN values such as `="978…"`
+- Imports every exclusive shelf (`read`, `currently-reading`, `to-read`) plus custom shelf names
+- Deduplicates by Goodreads Book Id
+- Matches Open Library by ISBN first, then title and author
+- Samples spine color from the cover’s left edge
+- Sorts by Date Read, then Date Added
+- Leaves unmatched books on the shelf with a typeset cover
 
 ## What’s on the page
 
-- Typed heading, grain, and a curved horizontal rail
-- Hover metadata card and a 900ms cover pull-out
-- Genre pills generated from whatever tags exist in `books`
-- **Recommend a book** — visitors search Open Library and leave a volume on a second shelf (stored in this browser via `localStorage`; no database required)
+- Personal 3D shelf of imported Goodreads books
+- Catalogue search results in a separate Open Library list (does not add to your shelf)
+- “In my library” when ISBN or work key matches
+- Your rating shown as **Not rated** when empty; Open Library averages are labeled separately
+- Your written reviews, rendered as plain text
+- Visitor recommendations on a second shelf (`localStorage`)
+
+## Ship
+
+Import the GitHub repo on [Vercel](https://vercel.com/new). Framework: Next.js.
 
 ## Stack
 

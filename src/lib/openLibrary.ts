@@ -49,16 +49,14 @@ export async function searchBooks(
   const data = (await res.json()) as { docs?: OpenLibraryDoc[] };
 
   return (data.docs ?? [])
-    .filter((doc): doc is OpenLibraryDoc & { title: string; cover_i: number } =>
-      Boolean(doc.title && doc.cover_i)
-    )
+    .filter((doc) => Boolean(doc.title && doc.key))
     .map((doc) => ({
       key: doc.key,
       title: doc.title,
       author: doc.author_name?.[0] ?? "Unknown",
       year: doc.first_publish_year ?? 0,
-      cover: coverUrl(doc.cover_i),
-      coverId: doc.cover_i,
+      cover: doc.cover_i ? coverUrl(doc.cover_i) : "",
+      coverId: doc.cover_i ?? 0,
       pages: doc.number_of_pages_median ?? 0,
       publisher: doc.publisher?.[0] ?? "",
     }));
@@ -181,7 +179,7 @@ export async function buildBook(
     author: result.author,
     cover: result.cover,
     year: result.year,
-    blurb: result.note?.trim() || `${result.title} by ${result.author}.`,
+    blurb: result.note?.trim() || "",
     rating: 0,
     finished: result.recommender ? `Recommended by ${result.recommender}` : "",
     recommender: result.recommender,

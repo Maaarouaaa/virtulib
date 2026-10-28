@@ -1,34 +1,79 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useMemo, useState } from "react";
 import { BookDetail } from "@/components/BookDetail";
+import { CatalogueResults } from "@/components/CatalogueResults";
 import { LibraryFilter } from "@/components/LibraryFilter";
 import { RecommendBookDialog } from "@/components/RecommendBookDialog";
 import { Shelf, type ShelfRect } from "@/components/Shelf";
 import { TypedTitle } from "@/components/TypedTitle";
 import { Button } from "@/components/ui/button";
 import { books } from "@/data/books";
+import { useCatalogueSearch } from "@/hooks/useCatalogueSearch";
 import { useRecommendations } from "@/hooks/useRecommendations";
 import type { Book } from "@/data/books";
+import { libraryIndex, isInLibrary } from "@/lib/bookMatch";
+import { catalogueToBook, type CatalogueResult } from "@/lib/catalogue";
 
 type OpenBook = {
   book: Book;
   rect: ShelfRect;
+  collection: Book[];
 };
 
 export function Library() {
-  const [shown, setShown] = useState<Book[] | null>(null);
+  const [query, setQuery] = useState("");
+  const [genre, setGenre] = useState<string | null>(null);
+  const [shelfStatus, setShelfStatus] = useState<string | null>(null);
   const [open, setOpen] = useState<OpenBook | null>(null);
   const [recommendOpen, setRecommendOpen] = useState(false);
   const { recommendations, justAdded, recommend } = useRecommendations();
+  const catalogue = useCatalogueSearch(query);
+  const index = useMemo(() => libraryIndex(books), []);
 
-  const onFilter = useCallback((visible: Book[] | null) => {
-    setShown(visible);
-  }, []);
+  const inLibraryKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const result of catalogue.results) {
+      if (isInLibrary({ key: result.key, isbn: result.isbn }, index)) {
+        keys.add(result.key);
+      }
+    }
+    return keys;
+  }, [catalogue.results, index]);
 
-  const visible = shown ?? books;
+  const visible = useMemo(() => {
+    return books.filter((book) => {
+      if (genre && !book.genres?.includes(genre)) return false;
+      if (shelfStatus && book.status !== shelfStatus) return false;
+      return true;
+    });
+  }, [genre, shelfStatus]);
+
   const emptyLibrary = books.length === 0;
   const noMatch = !emptyLibrary && visible.length === 0;
+  const searching = catalogue.active;
+  const searchStatus =
+    catalogue.status === "loading"
+      ? "Searching Open Library…"
+      : catalogue.error
+        ? catalogue.error
+        : catalogue.results.length
+          ? `${catalogue.numFound} found`
+          : "Nothing quite fits.";
+
+  function openFromShelf(book: Book, rect: ShelfRect, collection: Book[]) {
+    setOpen({ book, rect, collection });
+  }
+
+  function openFromCatalogue(result: CatalogueResult, rect: DOMRect) {
+    const book = catalogueToBook(result);
+    const collection = catalogue.results.map(catalogueToBook);
+    setOpen({
+      book,
+      rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+      collection,
+    });
+  }
 
   return (
     <div className="grain relative min-h-screen overflow-hidden">
@@ -60,11 +105,33 @@ export function Library() {
             </Button>
           </div>
         </div>
-        <LibraryFilter books={books} onChange={onFilter} />
+        <LibraryFilter
+          books={books}
+          query={query}
+          onQueryChange={setQuery}
+          genre={genre}
+          onGenreChange={setGenre}
+          status={shelfStatus}
+          onStatusChange={setShelfStatus}
+          searching={searching}
+          searchStatus={searchStatus}
+        />
       </header>
 
       <main className={recommendations.length ? "relative z-10 pb-2" : "relative z-10 pb-16"}>
-        {emptyLibrary ? (
+        {searching ? (
+          <CatalogueResults
+            results={catalogue.results}
+            numFound={catalogue.numFound}
+            status={catalogue.status}
+            error={catalogue.error}
+            hasMore={catalogue.hasMore}
+            inLibraryKeys={inLibraryKeys}
+            onOpen={openFromCatalogue}
+            onLoadMore={catalogue.loadMore}
+            onRetry={catalogue.retry}
+          />
+        ) : emptyLibrary ? (
           <div className="mx-auto max-w-xl px-6 py-24 text-center">
             <p className="font-display text-3xl italic">The shelves are waiting.</p>
             <p className="mt-4 text-muted-foreground">
@@ -77,14 +144,14 @@ export function Library() {
           <div className="mx-auto max-w-xl px-6 py-24 text-center">
             <p className="font-display text-3xl italic">No books match.</p>
             <p className="mt-3 text-muted-foreground">
-              Try a looser wish, or clear the genre filter.
+              Try a looser shelf or genre filter.
             </p>
           </div>
         ) : (
           <Shelf
             books={visible}
             disabled={Boolean(open)}
-            onOpen={(book, rect) => setOpen({ book, rect })}
+            onOpen={(book, rect) => openFromShelf(book, rect, visible)}
           />
         )}
 
@@ -99,7 +166,9 @@ export function Library() {
               books={recommendations}
               justAdded={justAdded}
               disabled={Boolean(open)}
-              onOpen={(book, rect) => setOpen({ book, rect })}
+              onOpen={(book, rect) =>
+                openFromShelf(book, rect, recommendations)
+              }
             />
           </section>
         ) : null}
@@ -109,11 +178,7 @@ export function Library() {
         <BookDetail
           book={open.book}
           rect={open.rect}
-          books={
-            recommendations.some((item) => item.id === open.book.id)
-              ? recommendations
-              : visible
-          }
+          books={open.collection}
           onChange={(book) => setOpen((prev) => (prev ? { ...prev, book } : prev))}
           onClose={() => setOpen(null)}
         />

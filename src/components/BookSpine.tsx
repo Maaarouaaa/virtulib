@@ -327,7 +327,13 @@ export function BookSpine({
                 style={{ fontSize: 14 }}
               >
                 {book.year || "—"} · {book.binding}
-                {book.rating > 0 ? ` · ${book.rating.toFixed(1)}★` : " · unrated"}
+                {book.goodreadsId
+                  ? book.rating > 0
+                    ? ` · ${book.rating.toFixed(1)}★`
+                    : " · Not rated"
+                  : book.status
+                    ? ` · ${book.status.replace("-", " ")}`
+                    : ""}
               </p>
               {book.genres?.length ? (
                 <p

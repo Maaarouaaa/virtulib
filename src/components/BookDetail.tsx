@@ -5,6 +5,8 @@ import { COVER_W, faceFont } from "@/components/bookFaces";
 import type { ShelfRect } from "@/components/Shelf";
 import type { Book } from "@/data/books";
 import { Button } from "@/components/ui/button";
+import { statusLabel } from "@/lib/bookMatch";
+import { formatCount } from "@/lib/text";
 import { cn } from "@/lib/utils";
 
 type BookDetailProps = {
@@ -15,15 +17,37 @@ type BookDetailProps = {
   onChange: (book: Book) => void;
 };
 
-function stars(rating: number) {
-  if (rating <= 0) return "Unrated";
+function PersonalRating({ rating }: { rating: number }) {
+  if (rating <= 0) return <span>Your rating · Not rated</span>;
   const full = Math.round(rating);
-  return `${"★".repeat(full)}${"☆".repeat(Math.max(0, 5 - full))}`;
+  return (
+    <span>
+      Your rating · {"★".repeat(full)}
+      {"☆".repeat(Math.max(0, 5 - full))}
+    </span>
+  );
+}
+
+function CommunityRating({
+  average,
+  count,
+}: {
+  average?: number;
+  count?: number;
+}) {
+  if (average == null) return null;
+  return (
+    <p className="mt-2 font-mono text-[12px] uppercase tracking-[0.14em] text-muted-foreground">
+      Open Library {average.toFixed(1)}★
+      {count != null ? ` · ${formatCount(count)} ratings` : ""}
+    </p>
+  );
 }
 
 export function BookDetail({ book, rect, books, onClose, onChange }: BookDetailProps) {
   const [out, setOut] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [fetchedBlurb, setFetchedBlurb] = useState("");
   const [vp, setVp] = useState(() =>
     typeof window === "undefined"
       ? { w: 1200, h: 800 }
@@ -43,6 +67,23 @@ export function BookDetail({ book, rect, books, onClose, onChange }: BookDetailP
     });
     return () => cancelAnimationFrame(id);
   }, []);
+
+  useEffect(() => {
+    if (book.blurb || !book.openLibraryKey) return;
+    const controller = new AbortController();
+    fetch(
+      `/api/catalogue/work?key=${encodeURIComponent(book.openLibraryKey)}`,
+      { signal: controller.signal }
+    )
+      .then((res) => res.json())
+      .then((data: { description?: string }) => {
+        if (typeof data.description === "string" && data.description.trim()) {
+          setFetchedBlurb(data.description.trim());
+        }
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [book.blurb, book.openLibraryKey, book.id]);
 
   function retract() {
     if (leaving) return;
@@ -91,6 +132,8 @@ export function BookDetail({ book, rect, books, onClose, onChange }: BookDetailP
   }, [vp, rect]);
 
   const visible = out && !leaving;
+  const personal = Boolean(book.goodreadsId);
+  const description = book.blurb || fetchedBlurb;
 
   return (
     <div className="fixed inset-0 z-[80]">
@@ -162,7 +205,7 @@ export function BookDetail({ book, rect, books, onClose, onChange }: BookDetailP
 
       <aside
         className={cn(
-          "pointer-events-auto absolute z-[95] max-w-[min(420px,calc(100%-2rem))] px-6",
+          "pointer-events-auto absolute z-[95] max-h-[80vh] overflow-y-auto max-w-[min(420px,calc(100%-2rem))] px-6",
           pose.narrow
             ? "right-4 bottom-6 left-4"
             : "top-1/2 right-[6vw] -translate-y-1/2"
@@ -174,22 +217,36 @@ export function BookDetail({ book, rect, books, onClose, onChange }: BookDetailP
         }}
       >
         <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-          {book.recommender
-            ? `Recommended by ${book.recommender}`
-            : book.finished
-              ? `Finished ${book.finished}`
-              : "On the shelf"}
+          {statusLabel(book)}
         </p>
         <h2 className="mt-3 font-display text-[clamp(1.8rem,4vw,2.6rem)] leading-[1.1] italic">
           {book.title}
         </h2>
         <p className="mt-2 font-sans text-lg text-foreground/80">{book.author}</p>
-        <p className="mt-4 max-w-prose text-[15px] leading-7 text-foreground/75">
-          {book.blurb}
-        </p>
-        <p className="mt-4 font-mono text-sm tracking-[0.16em] text-primary">
-          {stars(book.rating)}
-        </p>
+        {description ? (
+          <p className="mt-4 max-w-prose whitespace-pre-wrap text-[15px] leading-7 text-foreground/75">
+            {description}
+          </p>
+        ) : null}
+        {book.review ? (
+          <div className="mt-5">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+              Your review
+            </p>
+            <p className="mt-2 max-w-prose whitespace-pre-wrap text-[15px] leading-7 text-foreground/80">
+              {book.review}
+            </p>
+          </div>
+        ) : null}
+        {personal ? (
+          <p className="mt-4 font-mono text-sm tracking-[0.16em] text-primary">
+            <PersonalRating rating={book.rating} />
+          </p>
+        ) : null}
+        <CommunityRating
+          average={book.communityRating}
+          count={book.communityRatingCount}
+        />
         <div className="mt-8 flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => step(-1)}>
             Previous
